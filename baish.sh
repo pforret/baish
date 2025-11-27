@@ -144,6 +144,7 @@ function do_tokens() {
   # Streaming whitespace cleanup pipeline
   # 1. tr -s ' \t' ' ' : collapse consecutive spaces/tabs to single space
   # 2. awk : collapse 3+ consecutive blank lines to 2, count chars and words in single pass
+  # shellcheck disable=SC2016
   local cleanup_and_count='
     BEGIN { chars=0; words=0; blank=0 }
     {
