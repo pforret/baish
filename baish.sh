@@ -172,10 +172,10 @@ function do_tokens() {
   # Get syntax-specific formula parameters
   # Based on benchmark data:
   #   prose: ~4.3 chars/token (natural language)
-  #   code:  ~3.8 chars/token (Python, JS, TS, Go, Rust, PHP, Perl)
-  #   shell: ~2.8 chars/token (bash scripts, many special chars)
-  #   markup: ~3.0 chars/token (HTML, CSS)
-  #   data:  ~3.0 chars/token (JSON, CSV, YAML, TOML, XML)
+  #   code:  ~2.5 chars/token (Python, JS, TS, Go, Rust, PHP, Perl)
+  #   shell: ~1.9 chars/token (bash scripts, many special chars)
+  #   markup: ~1.7 chars/token (HTML, CSS)
+  #   data:  ~1.5 chars/token (JSON, CSV, YAML, TOML, XML)
   local chars_per_token words_multiplier
   case "$detected_syntax" in
     prose)
@@ -183,20 +183,20 @@ function do_tokens() {
       words_multiplier=1.33
       ;;
     code)
-      chars_per_token=3.8
+      chars_per_token=2.5
       words_multiplier=1.5
       ;;
     shell)
-      chars_per_token=2.8
-      words_multiplier=1.8
+      chars_per_token=1.9
+      words_multiplier=3.1
       ;;
     markup)
-      chars_per_token=3.0
-      words_multiplier=1.6
+      chars_per_token=1.7
+      words_multiplier=3.3
       ;;
     data)
-      chars_per_token=3.0
-      words_multiplier=1.7
+      chars_per_token=1.5
+      words_multiplier=1.5
       ;;
     *)
       # Default to prose

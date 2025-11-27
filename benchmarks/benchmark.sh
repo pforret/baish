@@ -13,6 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BAISH_DIR="${SCRIPT_DIR}/.."
 BAISH_SCRIPT="${BAISH_DIR}/baish.sh"
 BENCHMARK_DIR="${SCRIPT_DIR}"
+DOCUMENTS_DIR="${SCRIPT_DIR}/documents"
 RESULTS_FILE="${SCRIPT_DIR}/benchmark_results.csv"
 
 ### Load .env file for API keys
@@ -297,15 +298,11 @@ run_benchmark() {
   local file_count=0
 
   # Process each benchmark file
-  for file in "$BENCHMARK_DIR"/*.{txt,py,js,ts,go,rs,php,pl,sh,css,html,json,csv,yaml,toml,md}; do
+  for file in "$DOCUMENTS_DIR"/*.{txt,py,js,ts,go,rs,php,pl,sh,css,html,json,csv,yaml,toml,md}; do
     [[ -f "$file" ]] || continue
 
     local filename
     filename=$(basename "$file")
-
-    # Skip this script and results
-    [[ "$filename" == "benchmark.sh" ]] && continue
-    [[ "$filename" == "benchmark_results.csv" ]] && continue
 
     # Get file stats
     local lines chars words
