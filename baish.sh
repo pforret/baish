@@ -132,42 +132,80 @@ function do_action2() {
 }
 
 function do_tokens() {
-  local text=""
   local source_file=""
+  local input_mode=""
 
-  # Get input from file, stdin, or parameter
+  # Determine input source (don't read yet - stream later)
   if [[ -n "${input:-}" ]] && [[ -f "$input" ]]; then
-    IO:debug "Reading from file: $input"
+    IO:debug "Input from file: $input"
     source_file="$input"
-    text=$(cat "$input")
+    input_mode="file"
   elif [[ -n "${input:-}" ]] && [[ "$input" == "-" ]]; then
-    IO:debug "Reading from stdin (explicit -)"
-    text=$(cat)
+    IO:debug "Input from stdin (explicit -)"
+    input_mode="stdin"
   elif [[ -n "${input:-}" ]]; then
-    IO:debug "Using parameter as text"
-    text="$input"
+    IO:debug "Input from parameter"
+    input_mode="param"
   elif [[ ! -t 0 ]]; then
-    IO:debug "Reading from piped stdin"
-    text=$(cat)
+    IO:debug "Input from piped stdin"
+    input_mode="stdin"
   else
     IO:die "No input provided. Use: $script_prefix tokens <file>, $script_prefix tokens \"text\", or pipe text"
   fi
 
-  # Handle empty input
-  [[ -z "$text" ]] && IO:die "Input text is empty"
-
-  # Detect or use specified syntax
+  # Detect or use specified syntax (before streaming)
   local detected_syntax="${syntax:-auto}"
   if [[ "$detected_syntax" == "auto" ]]; then
     detected_syntax=$(detect_syntax "$source_file")
   fi
   IO:debug "Syntax type: $detected_syntax"
 
-  # Calculate metrics
-  local char_count word_count line_count
-  char_count=$(printf '%s' "$text" | wc -c | tr -d ' ')
-  word_count=$(printf '%s' "$text" | wc -w | tr -d ' ')
-  line_count=$(printf '%s' "$text" | wc -l | tr -d ' ')
+  # Streaming whitespace cleanup pipeline
+  # 1. tr -s ' \t' ' ' : collapse consecutive spaces/tabs to single space
+  # 2. awk : collapse 3+ consecutive blank lines to 2, count chars and words in single pass
+  local cleanup_and_count='
+    BEGIN { chars=0; words=0; blank=0 }
+    {
+      # Collapse consecutive spaces/tabs (tr -s done before awk)
+      gsub(/[ \t]+/, " ")
+
+      # Track blank lines
+      if ($0 ~ /^[[:space:]]*$/) {
+        blank++
+        if (blank <= 2) {
+          chars += length($0) + 1  # +1 for newline
+        }
+      } else {
+        blank = 0
+        chars += length($0) + 1  # +1 for newline
+        words += NF
+      }
+    }
+    END { print chars, words }
+  '
+
+  # Stream input through cleanup and count (single pass, no memory storage)
+  local counts
+  case "$input_mode" in
+    file)
+      [[ ! -s "$source_file" ]] && IO:die "Input file is empty"
+      counts=$(tr -s ' \t' ' ' < "$source_file" | awk "$cleanup_and_count")
+      ;;
+    stdin)
+      counts=$(tr -s ' \t' ' ' | awk "$cleanup_and_count")
+      ;;
+    param)
+      counts=$(printf '%s\n' "$input" | tr -s ' \t' ' ' | awk "$cleanup_and_count")
+      ;;
+  esac
+
+  # Parse counts
+  local char_count word_count
+  char_count=$(echo "$counts" | awk '{print $1}')
+  word_count=$(echo "$counts" | awk '{print $2}')
+
+  # Handle empty input
+  [[ "$char_count" -eq 0 ]] && IO:die "Input is empty"
 
   # Get syntax-specific formula parameters
   # Based on benchmark data:
@@ -218,7 +256,6 @@ function do_tokens() {
   # Output details in verbose mode
   IO:debug "Characters: $char_count"
   IO:debug "Words: $word_count"
-  IO:debug "Lines: $line_count"
   IO:debug "Formula: chars/$chars_per_token + words*$words_multiplier / 2"
   IO:debug "Estimate (chars/$chars_per_token): $(Tool:round "$tokens_by_chars" 0)"
   IO:debug "Estimate (words*$words_multiplier): $(Tool:round "$tokens_by_words" 0)"
