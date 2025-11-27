@@ -46,7 +46,7 @@ flag|f|FORCE|do not ask for confirmation (always yes)
 option|L|LOG_DIR|folder for log files |$HOME/log/$script_prefix
 option|T|TMP_DIR|folder for temp files|/tmp/$script_prefix
 option|s|syntax|syntax type for token estimation (auto/prose/code/shell/markup/data)|auto
-choice|1|action|action to perform|tokens,action1,action2,check,env,update
+choice|1|action|action to perform|tokens,check,env,update
 param|?|input|input file/text
 " -v -e '^#' -e '^\s*$'
 }
@@ -67,25 +67,6 @@ function Script:main() {
     #TIP:> cat file.txt | $script_prefix tokens -
     #TIP:> $script_prefix tokens file.txt
     do_tokens
-    ;;
-
-  action1)
-    #TIP: use «$script_prefix action1» to ...
-    #TIP:> $script_prefix action1
-    do_action1
-    ;;
-
-  action2)
-    #TIP: use «$script_prefix action2» to ...
-    #TIP:> $script_prefix action2
-    do_action2
-    ;;
-
-  action3)
-    #TIP: use «$script_prefix action3» to ...
-    #TIP:> $script_prefix action3
-    # Os:require "convert" "imagemagick"
-    # CONVERT $input $output
     ;;
 
   check | env)

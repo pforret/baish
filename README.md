@@ -6,7 +6,9 @@
 ![GH License](https://img.shields.io/github/license/pforret/baish)
 [![basher install](https://img.shields.io/badge/basher-install-white?logo=gnu-bash&style=flat)](https://www.basher.it/package/)
 
-# baish
+# pforret/baish
+
+![](baish.jpg)
 
 Bash tools for AI agents - utilities for working with LLMs from the command line.
 
