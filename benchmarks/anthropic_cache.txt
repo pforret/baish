@@ -1,0 +1,23 @@
+# Anthropic API Token Counts Cache
+# Model: claude-3-haiku-20240307
+# Generated: 2025-11-27 15:03:48 UTC
+
+01_prose_pride_prejudice.txt:28119
+02_poetry_shakespeare_sonnets.txt:15630
+03_code_python.py:18019
+04_code_javascript.js:3952
+05_data_csv.csv:12855
+06_data_json.json:184441
+07_code_shell.sh:21590
+08_legal_licenses.txt:9544
+09_prose_philosophy.txt:31991
+10_web_html.html:53098
+11_code_php.php:18250
+12_code_golang.go:8175
+13_code_rust.rs:9488
+14_code_typescript.ts:7277
+15_code_perl.pl:5452
+16_markup_html.html:8517
+17_style_css.css:7201
+18_config_yaml.yaml:4211
+19_config_toml.toml:12540

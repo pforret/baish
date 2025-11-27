@@ -159,11 +159,27 @@ check_tools() {
 
 count_baish() {
   local file="$1"
+  local syntax="${2:-auto}"
   if [[ $HAS_BAISH -eq 1 ]]; then
-    "$BAISH_SCRIPT" tokens "$file" 2>/dev/null | tr -d ' '
+    "$BAISH_SCRIPT" -s "$syntax" tokens "$file" 2>/dev/null | tr -d ' '
   else
     echo "N/A"
   fi
+}
+
+detect_file_syntax() {
+  local file="$1"
+  local ext="${file##*.}"
+  ext="${ext,,}"
+
+  case "$ext" in
+    txt|md|markdown|rst) echo "prose" ;;
+    py|js|ts|go|rs|php|pl|rb|java|c|cpp|h) echo "code" ;;
+    sh|bash|zsh) echo "shell" ;;
+    html|htm|css|xml|vue|jsx|tsx) echo "markup" ;;
+    json|csv|yaml|yml|toml|ini) echo "data" ;;
+    *) echo "prose" ;;
+  esac
 }
 
 count_tiktoken() {
@@ -192,8 +208,24 @@ count_tiktoken() {
   fi
 }
 
+ANTHROPIC_CACHE_FILE="${SCRIPT_DIR}/anthropic_cache.txt"
+
 count_anthropic() {
   local file="$1"
+  local filename
+  filename=$(basename "$file")
+
+  # First check cache file
+  if [[ -f "$ANTHROPIC_CACHE_FILE" ]]; then
+    local cached
+    cached=$(grep "^${filename}:" "$ANTHROPIC_CACHE_FILE" 2>/dev/null | cut -d: -f2)
+    if [[ -n "$cached" ]] && [[ "$cached" != "ERROR" ]]; then
+      echo "$cached"
+      return
+    fi
+  fi
+
+  # Fall back to API call if not in cache
   if [[ $HAS_ANTHROPIC -eq 1 ]] && [[ $HAS_JQ -eq 1 ]]; then
     local content
     # Read file and escape for JSON
@@ -251,13 +283,13 @@ run_benchmark() {
   echo ""
 
   # CSV header
-  echo "file,lines,chars,words,baish,tiktoken,anthropic,accuracy_vs_tiktoken,accuracy_vs_anthropic" > "$RESULTS_FILE"
+  echo "file,syntax,lines,chars,words,baish,tiktoken,anthropic,accuracy_vs_tiktoken,accuracy_vs_anthropic" > "$RESULTS_FILE"
 
   # Table header
-  printf "${BOLD}%-35s %7s %9s %9s %9s %8s %8s${RESET}\n" \
-    "File" "Lines" "Baish" "Tiktoken" "Anthropic" "Acc(T)" "Acc(A)"
-  printf "%-35s %7s %9s %9s %9s %8s %8s\n" \
-    "-----------------------------------" "-------" "---------" "---------" "---------" "--------" "--------"
+  printf "${BOLD}%-30s %6s %6s %8s %8s %8s %7s %7s${RESET}\n" \
+    "File" "Syntax" "Lines" "Baish" "Tiktoken" "Anthro" "Acc(T)" "Acc(A)"
+  printf "%-30s %6s %6s %8s %8s %8s %7s %7s\n" \
+    "------------------------------" "------" "------" "--------" "--------" "--------" "-------" "-------"
 
   local total_baish=0
   local total_tiktoken=0
@@ -281,11 +313,15 @@ run_benchmark() {
     chars=$(wc -c < "$file" | tr -d ' ')
     words=$(wc -w < "$file" | tr -d ' ')
 
+    # Detect syntax type
+    local file_syntax
+    file_syntax=$(detect_file_syntax "$file")
+
     # Count tokens
-    echo -ne "  Processing: $filename...\r"
+    echo -ne "  Processing: $filename ($file_syntax)...\r"
 
     local baish_count tiktoken_count anthropic_count
-    baish_count=$(count_baish "$file")
+    baish_count=$(count_baish "$file" "$file_syntax")
     tiktoken_count=$(count_tiktoken "$file")
     anthropic_count=$(count_anthropic "$file")
 
@@ -295,11 +331,11 @@ run_benchmark() {
     acc_anthropic=$(calc_accuracy "$baish_count" "$anthropic_count")
 
     # Output row
-    printf "%-35s %7s %9s %9s %9s %8s %8s\n" \
-      "$filename" "$lines" "$baish_count" "$tiktoken_count" "$anthropic_count" "$acc_tiktoken" "$acc_anthropic"
+    printf "%-30s %6s %6s %8s %8s %8s %7s %7s\n" \
+      "$filename" "$file_syntax" "$lines" "$baish_count" "$tiktoken_count" "$anthropic_count" "$acc_tiktoken" "$acc_anthropic"
 
     # CSV row
-    echo "$filename,$lines,$chars,$words,$baish_count,$tiktoken_count,$anthropic_count,$acc_tiktoken,$acc_anthropic" >> "$RESULTS_FILE"
+    echo "$filename,$file_syntax,$lines,$chars,$words,$baish_count,$tiktoken_count,$anthropic_count,$acc_tiktoken,$acc_anthropic" >> "$RESULTS_FILE"
 
     # Accumulate totals (only if numeric)
     if [[ "$baish_count" =~ ^[0-9]+$ ]]; then
@@ -319,15 +355,15 @@ run_benchmark() {
   done
 
   # Totals
-  printf "%-35s %7s %9s %9s %9s %8s %8s\n" \
-    "-----------------------------------" "-------" "---------" "---------" "---------" "--------" "--------"
+  printf "%-30s %6s %6s %8s %8s %8s %7s %7s\n" \
+    "------------------------------" "------" "------" "--------" "--------" "--------" "-------" "-------"
 
   local total_acc_tiktoken total_acc_anthropic
   total_acc_tiktoken=$(calc_accuracy "$total_baish" "$total_tiktoken")
   total_acc_anthropic=$(calc_accuracy "$total_baish" "$total_anthropic")
 
-  printf "${BOLD}%-35s %7s %9s %9s %9s %8s %8s${RESET}\n" \
-    "TOTAL ($file_count files)" "" "$total_baish" "$total_tiktoken" "$total_anthropic" "$total_acc_tiktoken" "$total_acc_anthropic"
+  printf "${BOLD}%-30s %6s %6s %8s %8s %8s %7s %7s${RESET}\n" \
+    "TOTAL ($file_count files)" "" "" "$total_baish" "$total_tiktoken" "$total_anthropic" "$total_acc_tiktoken" "$total_acc_anthropic"
 
   echo ""
   print_info "Results saved to: $RESULTS_FILE"
